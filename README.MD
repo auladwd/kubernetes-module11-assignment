@@ -43,24 +43,66 @@ kubectl apply -f service.yaml -n dev-env
 ```
 
 ## Part 1: Conceptual Understanding
-*(Answered independently, without AI assistance, per assignment instructions — see attached written answers.)*
 
-## Part 2: Cluster Setup & Verification — Observation
-The `kube-system` namespace contains the core control-plane components: `coredns`, `etcd`, `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, `kube-proxy`, and (in Minikube) `storage-provisioner`. These are required for Kubernetes to manage itself — DNS resolution, cluster state storage, scheduling, and node networking. All pods showing `Running` status with `READY` at full capacity (e.g. `1/1`) confirm the cluster's control plane is healthy and operational.
+**1. How does Kubernetes ensure high availability compared to traditional deployment?**
 
-## Part 3 & 4: Deployment, Service, ConfigMap, Secret
-- Deployment runs 2 replicas of `nginx:1.25`, labeled `app: nginx-demo`.
-- Service (`NodePort`, port `30080`) selects pods via the same label for traffic routing.
-- ConfigMap injects `APP_MODE=dev`; Secret injects dummy `USERNAME`/`PASSWORD` — both mounted as environment variables via `envFrom`.
-- Verified inside the container using `kubectl exec -it <pod> -- env`.
+> **Answer:** In traditional deployments, if a server or application crashes, the website goes down completely until someone fixes it manually. Kubernetes prevents this by running multiple copies (replicas) of the app across different nodes. If a container or node fails, Kubernetes automatically detects it and creates a new one immediately using its self-healing feature, keeping the app online without any downtime for users.
 
-## Part 5: Scaling & Rolling Updates — Observation
-Running `kubectl set image` triggers Kubernetes to create a new ReplicaSet and gradually replace old Pods with new ones in a rolling fashion, avoiding downtime. `kubectl rollout status` tracks this progress in real time. `kubectl rollout undo` reverses the process by scaling the previous ReplicaSet back up and the current one down, restoring the prior revision. `kubectl rollout history` lists all revisions for traceability.
+**2. Explain the relationship between Pods, ReplicaSets, and Deployments.**
 
-## Part 6: Basic Troubleshooting — Observation
-An intentional bad image tag caused pods to enter `ImagePullBackOff`/`ErrImagePull`, visible via `kubectl get pods`. `kubectl describe pod` confirmed the exact cause in the Events section (failed image pull). `kubectl logs` returned no output since the container never started, confirming the failure occurred at the image-pull stage rather than inside a running container. The issue was resolved by re-applying a valid image tag (`nginx:1.27`) and confirming recovery with `kubectl rollout status`.
+> **Answer:** These three components work in a hierarchy. A Pod is the smallest unit in Kubernetes that actually holds and runs our application container. A ReplicaSet sits behind the scenes to make sure the exact number of Pods we requested are always running. Finally, the Deployment is the top-level manager that controls the ReplicaSet. We use Deployments to easily update our app to a new version or roll it back if something goes wrong.
 
-## Part 7: Namespace Isolation
-A new namespace (`dev-env`) was created and the same application deployed into it. Resources in `dev-env` are only visible with `kubectl get pods -n dev-env`, while `default` namespace resources remain separately accessible via `-n default` — confirming namespace-level isolation.
+**3. Why are Services required in Kubernetes?**
+
+> **Answer:** Pods in Kubernetes are temporary; they can die and get recreated at any time, and every time they do, their IP address changes. Because of this unstable networking, we cannot connect to Pods directly. A Service acts as a permanent gateway with a stable IP address and name for a group of Pods. It routes the incoming traffic and balances the load so that users or other parts of the app can always find and reach our application.
+
+**4. Difference between ConfigMaps and Secrets with a practical example.**
+
+> **Answer:** Both are used to store configuration settings outside of our application code, but they handle security differently. ConfigMaps store non-sensitive configuration settings in plain text, while Secrets are used to store private, sensitive information by encoding it in Base64 format so it is not visible to everyone.
+> *Practical Example:* For a database connection, you would save the environment mode or database port (`APP_MODE=dev`, `DB_PORT=5432`) inside a ConfigMap, but the actual database password (`DB_PASSWORD=mysecurepass123`) would be safely stored inside a Secret.
+
+## Observations
+
+**Part 2 — Cluster Setup & Verification (Observation)**
+
+The `kube-system` namespace contains the core control-plane components:
+`coredns`, `etcd`, `kube-apiserver`, `kube-controller-manager`,
+`kube-scheduler`, `kube-proxy`, and (in Minikube) `storage-provisioner`. All of
+these are required for Kubernetes to manage itself — DNS resolution, cluster
+state storage, scheduling, and node networking. Every pod showing `Running`
+status with `READY` as `1/1` (or `2/2` where applicable) confirms the cluster's
+control plane is healthy and fully operational.
+
+---
+
+**Part 5 — Scaling & Rolling Updates (Observation)**
+
+When `kubectl set image` is run, Kubernetes creates a new ReplicaSet and
+gradually replaces old Pods with new ones in a rolling fashion — it does not
+terminate all old Pods at once, so the application stays available throughout
+the update (zero downtime). `kubectl rollout status` shows the progress in real
+time, indicating how many new Pods are up and how many old ones are being
+terminated. Running `kubectl rollout undo` reverses this process: Kubernetes
+scales the previous ReplicaSet back up and scales the current one down,
+effectively restoring the deployment to its prior revision.
+`kubectl rollout history` lists all revision numbers, making it possible to
+track exactly which change was rolled back.
+
+---
+
+**Part 6 — Basic Troubleshooting (Observation)**
+
+The problem was first identified by checking `kubectl get pods`, where the
+STATUS column showed `ImagePullBackOff`/`ErrImagePull`. Running
+`kubectl describe pod <pod-name>` confirmed the root cause in the Events section
+— the container runtime failed to pull the specified image because the tag did
+not exist in the registry. `kubectl logs <pod-name>` returned little or no
+output, since the container never actually started; this itself is a useful
+diagnostic signal, confirming the failure occurred at the image-pull stage
+rather than inside a running container (which would show application logs or a
+crash trace instead). The issue was resolved by running `kubectl set image`
+again with a valid, existing image tag (`nginx:1.27`), and
+`kubectl rollout status` was used to confirm all Pods returned to a healthy
+`Running` state.
 
 ## Screenshots
