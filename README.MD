@@ -106,3 +106,9 @@ again with a valid, existing image tag (`nginx:1.27`), and
 `Running` state.
 
 ## Screenshots
+![Cluster setup and verification](<Screenshots/Cluster Setup & Verification.jpg>)
+![Configuration and secrets](<Screenshots/Configuration & Secrets-1.jpg>)
+![Nginx deployment](<Screenshots/Nginx.jpg>)
+![Scaling and rolling updates](<Screenshots/Scaling & Rolling Updates.jpg>)
+![Namespaces isolation](<Screenshots/Namespaces (Isolation)-1.jpg>)
+![Basic troubleshooting](<Screenshots/Basic Troubleshooting.jpg>)
